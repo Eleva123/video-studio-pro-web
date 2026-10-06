@@ -1,4 +1,5 @@
 import {finalArgs, segmentArgs, totalFrames, validateProject, verifyOutput} from './model.js';
+import {createId} from './id.js';
 
 export class ExportEngine {
   ffmpeg = null;
@@ -85,7 +86,7 @@ export class ExportEngine {
       const blob = new Blob([data], {type: 'video/mp4'});
       resultUrl = URL.createObjectURL(blob);
       onUpdate({message: 'Vídeo validado. Pronto para baixar.', progress: 1});
-      return {id: crypto.randomUUID(), url: resultUrl, name: `eleva-${settings.width}x${settings.height}-${settings.fps}fps-${frames}quadros.mp4`, size: blob.size, frames, fps: settings.fps, width: video.width, height: video.height, audio: settings.audio};
+      return {id: createId(), url: resultUrl, name: `eleva-${settings.width}x${settings.height}-${settings.fps}fps-${frames}quadros.mp4`, size: blob.size, frames, fps: settings.fps, width: video.width, height: video.height, audio: settings.audio};
     } catch (error) {
       if (resultUrl) URL.revokeObjectURL(resultUrl);
       if (this.cancelled) throw new Error('Exportação cancelada. Você pode editar e exportar novamente.');

@@ -1,3 +1,5 @@
+import {createId} from './id.js';
+
 const IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/bmp']);
 export async function readAsset(file) {
   const kind = IMAGE_TYPES.has(file.type) ? 'image' : file.type.startsWith('video/') ? 'video' : null;
@@ -17,6 +19,6 @@ export async function readAsset(file) {
     const height = kind === 'image' ? media.naturalHeight : media.videoHeight;
     const duration = kind === 'image' ? 0 : media.duration;
     if (!width || !height || !Number.isFinite(duration)) throw new Error('O arquivo não possui dimensões ou duração válidas.');
-    return {id: crypto.randomUUID(), file, name: file.name, url, kind, width, height, duration};
+    return {id: createId(), file, name: file.name, url, kind, width, height, duration};
   } catch (error) { URL.revokeObjectURL(url); throw new Error(`“${file.name}”: ${error.message}`); }
 }
