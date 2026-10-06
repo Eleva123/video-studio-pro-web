@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {changeFps, DEFAULT_SETTINGS, distributeFrames, readPresets, secondsToFrames, timecode, validateProject, verifyOutput} from '../src/model.js';
+import {changeFps, DEFAULT_SETTINGS, distributeFrames, readPresets, resizeClip, secondsToFrames, timecode, validateProject, verifyOutput} from '../src/model.js';
 const still = frames => ({frames, asset: {kind: 'image'}});
 test('10 segundos a 30 FPS dividem três cenas em exatamente 100 quadros', () => {
   assert.deepEqual(distributeFrames(secondsToFrames(10, 30), 3), [100, 100, 100]);
@@ -30,4 +30,9 @@ test('presets corrompidos não impedem a abertura do editor', () => {
   assert.deepEqual(readPresets({getItem: () => '{invalid'}), []);
   assert.deepEqual(readPresets({getItem: () => '{"name":"x"}'}), []);
   assert.deepEqual(readPresets({getItem: () => JSON.stringify([{name: 'Meu painel', width: 600, height: 360}, {name: 'Inválido', width: 601, height: 360}])}), [{name: 'Meu painel', width: 600, height: 360}]);
+});
+test('alças da timeline ajustam duração e corte inicial em quadros', () => {
+  const clip = {frames: 100, trimStart: 0, trimEnd: 4, asset: {kind: 'video', duration: 4}};
+  assert.deepEqual(resizeClip(clip, 20, 'right', 30), {frames: 120});
+  assert.deepEqual(resizeClip(clip, 15, 'left', 30), {frames: 85, trimStart: 0.5});
 });

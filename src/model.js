@@ -20,6 +20,14 @@ export function distributeFrames(frames, count) {
 export function changeFps(project, fps) {
   return {...project, settings: {...project.settings, fps}, clips: project.clips.map(clip => ({...clip, frames: secondsToFrames(clip.frames / project.settings.fps, fps)}))};
 }
+export function resizeClip(clip, deltaFrames, edge, fps) {
+  const delta = Math.round(Number(deltaFrames) || 0);
+  if (edge === 'right') return {frames: Math.max(1, clip.frames + delta)};
+  const frames = Math.max(1, clip.frames - delta);
+  if (clip.asset.kind !== 'video') return {frames};
+  const trimStart = Math.max(0, Math.min(clip.trimEnd - 1 / fps, clip.trimStart + delta / fps));
+  return {frames: Math.max(1, frames), trimStart};
+}
 export function validateProject({settings, clips}) {
   for (const [key, label] of [['width', 'largura'], ['height', 'altura']]) {
     const n = Number(settings[key]);

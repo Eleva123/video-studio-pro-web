@@ -23,22 +23,24 @@ export function EditComposition({clips, settings}) {
     </Sequence>;
   })}</AbsoluteFill>;
 }
-function Transport({playerRef, frames, fps, onExportFrame}) {
+function Transport({playerRef, frames, fps, onExportFrame, onFrameChange}) {
   const [frame, setFrame] = useState(0);
   const [playing, setPlaying] = useState(false);
   useEffect(() => {
     const player = playerRef.current;
     if (!player) return;
-    const update = ({detail}) => setFrame(detail.frame);
+    const update = ({detail}) => {setFrame(detail.frame); onFrameChange?.(detail.frame);};
     const play = () => setPlaying(true);
     const pause = () => setPlaying(false);
     player.addEventListener('frameupdate', update);
     player.addEventListener('play', play);
     player.addEventListener('pause', pause);
     player.addEventListener('ended', pause);
-    setFrame(player.getCurrentFrame());
+    const initialFrame = player.getCurrentFrame();
+    setFrame(initialFrame);
+    onFrameChange?.(initialFrame);
     return () => {player.removeEventListener('frameupdate', update); player.removeEventListener('play', play); player.removeEventListener('pause', pause); player.removeEventListener('ended', pause);};
-  }, [playerRef, frames, fps]);
+  }, [playerRef, frames, fps, onFrameChange]);
   const seek = (f) => {playerRef.current?.pause(); playerRef.current?.seekTo(Math.min(frames - 1, Math.max(0, f)));};
   useEffect(() => {
     const keydown = (event) => {
@@ -58,7 +60,7 @@ function Transport({playerRef, frames, fps, onExportFrame}) {
     <input className="scrubber" aria-label="Posição da prévia em quadros" type="range" min="0" max={frames - 1} value={Math.min(frame, frames - 1)} onChange={e => seek(Number(e.target.value))}/>
   </div>;
 }
-export function Preview({project, playerRef, onAdd, onExportFrame}) {
+export function Preview({project, playerRef, onAdd, onExportFrame, onFrameChange}) {
   const {settings, clips} = project;
   const frames = totalFrames(clips);
   const inputProps = useMemo(() => ({clips, settings}), [clips, settings]);
@@ -69,6 +71,6 @@ export function Preview({project, playerRef, onAdd, onExportFrame}) {
   return <section className="preview-card">
     <div className="section-header"><h2><Icon name="screen"/> Prévia do painel</h2><span className="badge">{settings.width || '—'} × {settings.height || '—'} px</span></div>
     <div className="preview-stage">{clips.length && validSize ? <Player key={previewKey} ref={playerRef} component={EditComposition} inputProps={inputProps} durationInFrames={frames} fps={settings.fps} compositionWidth={Number(settings.width)} compositionHeight={Number(settings.height)} controls={false} clickToPlay={false} loop={false} style={{width: '100%', maxHeight: 350, aspectRatio: `${settings.width}/${settings.height}`}} errorFallback={() => <div className="preview-error">Não foi possível mostrar esta mídia. Remova a cena ou importe uma versão em MP4 H.264.</div>} /> : <div className="preview-empty"><div className="empty-symbol"><Icon name="film" size={35}/></div><h3>Seu próximo vídeo começa aqui</h3><p>Adicione as mídias, ajuste o painel e confira cada quadro.</p><button className="button secondary" onClick={onAdd}><Icon name="add"/> Adicionar mídias</button></div>}</div>
-    {clips.length > 0 && validSize ? <Transport key={previewKey} playerRef={playerRef} frames={frames} fps={settings.fps} onExportFrame={onExportFrame}/> : <div className="preview-footnote">Prévia por quadro com Remotion <span>•</span> Arquivos processados no seu navegador</div>}
+    {clips.length > 0 && validSize ? <Transport key={previewKey} playerRef={playerRef} frames={frames} fps={settings.fps} onExportFrame={onExportFrame} onFrameChange={onFrameChange}/> : <div className="preview-footnote">Prévia por quadro com Remotion <span>•</span> Arquivos processados no seu navegador</div>}
   </section>;
 }

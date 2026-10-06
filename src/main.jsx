@@ -6,7 +6,7 @@ import {readAsset} from './media.js';
 import {ExportEngine} from './exporter.js';
 import {exportFrame} from './frameExport.js';
 import {createId} from './id.js';
-import {changeFps, DEFAULT_SETTINGS, distributeFrames, PRESETS, readPresets, secondsLabel, secondsToFrames, totalFrames, validateProject} from './model.js';
+import {changeFps, DEFAULT_SETTINGS, distributeFrames, PRESETS, readPresets, resizeClip, secondsLabel, secondsToFrames, timecode, totalFrames, validateProject} from './model.js';
 import './style.css';
 
 const initial = {settings: {...DEFAULT_SETTINGS}, clips: []};
@@ -39,6 +39,9 @@ function App() {
   const [dragOver, setDragOver] = useState(false);
   const [dragged, setDragged] = useState(null);
   const [savingFrame, setSavingFrame] = useState(false);
+  const [timelineDraft, setTimelineDraft] = useState(null);
+  const [playheadFrame, setPlayheadFrame] = useState(0);
+  const timelineDrag = useRef(null);
   const fileInput = useRef(null);
   const playerRef = useRef(null);
   const engine = useRef(new ExportEngine());
@@ -105,6 +108,25 @@ function App() {
     } catch (error) {setNotice(error.message); setProgress({message: '', progress: 0});}
     finally {setBusy(false);}
   }
+  function beginTimelineResize(event, index, edge) {
+    event.preventDefault(); event.stopPropagation();
+    timelineDrag.current = {index, edge, startX: event.clientX};
+    setTimelineDraft({index, edge, delta: 0});
+  }
+  useEffect(() => {
+    if (!timelineDraft) return undefined;
+    const onMove = event => setTimelineDraft(draft => draft ? {...draft, delta: Math.round((event.clientX - timelineDrag.current.startX) / 3)} : draft);
+    const onUp = () => {
+      const drag = timelineDrag.current;
+      const clip = clips[drag.index];
+      if (clip) change(p => ({...p, clips: p.clips.map((item, index) => index === drag.index ? {...item, ...resizeClip(item, timelineDraft.delta, drag.edge, settings.fps)} : item)}));
+      timelineDrag.current = null;
+      setTimelineDraft(null);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp, {once: true});
+    return () => {window.removeEventListener('pointermove', onMove); window.removeEventListener('pointerup', onUp);};
+  }, [timelineDraft, clips, settings.fps, change]);
   async function saveCurrentFrame(frame) {
     if (busy || importing || savingFrame) return;
     setSavingFrame(true); setNotice('');
@@ -139,10 +161,11 @@ function App() {
           {!clips.length && <p className="media-empty">Suas imagens e vídeos aparecem aqui. Cada arquivo vira uma cena.</p>}
           <div className="workflow-tip"><span className="tip-number">01</span><div><strong>Um fluxo feito para LED</strong><p>Importe → ajuste → confira → exporte.</p></div></div>
         </aside>
-        <div className="center-column"><Preview project={project} playerRef={playerRef} onAdd={() => fileInput.current.click()} onExportFrame={saveCurrentFrame}/>
-          <section className="timeline panel"><div className="section-header"><h2><Icon name="film"/> Linha do tempo</h2><span className="muted">{clips.length} {clips.length === 1 ? 'cena' : 'cenas'}</span></div>
+        <div className="center-column"><Preview project={project} playerRef={playerRef} onAdd={() => fileInput.current.click()} onExportFrame={saveCurrentFrame} onFrameChange={setPlayheadFrame}/>
+          <section className="timeline panel"><div className="section-header"><div><h2><Icon name="film"/> Linha do tempo</h2><span className="timeline-help">Arraste cenas para reordenar • use as alças para ajustar</span></div><span className="muted">{clips.length} {clips.length === 1 ? 'cena' : 'cenas'}</span></div>
             <div className="timeline-summary"><div><strong>{secondsLabel(frames, settings.fps)} <small>s</small></strong><span>Duração total</span></div><div><strong>{frames} <small>quadros</small></strong><span>{settings.fps} quadros por segundo</span></div><div className="summary-format"><strong>{settings.width || '—'} × {settings.height || '—'}</strong><span>Resolução de saída</span></div></div>
-            <div className="scene-strip">{clips.length ? clips.map((clip, i) => <button key={clip.id} disabled={busy} draggable={!busy} onDragStart={() => setDragged(i)} onDragEnd={() => setDragged(null)} onDragOver={e => e.preventDefault()} onDrop={e => {e.preventDefault(); if (dragged !== null) move(dragged, i); setDragged(null);}} onClick={() => selectClip(clip)} className={`scene-block ${clip.id === current?.id ? 'active' : ''}`} style={{flexGrow: clip.frames}}><span className="scene-number">{String(i + 1).padStart(2, '0')}</span><strong>{clip.asset.name}</strong><span>{secondsLabel(clip.frames, settings.fps)} s · {clip.frames} q</span></button>) : <div className="timeline-empty">Adicione arquivos para montar a sequência de cenas.</div>}</div>
+            <div className="timeline-ruler"><span>00:00:00:00</span><span>{timecode(Math.round(frames / 2), settings.fps)}</span><span>{timecode(frames, settings.fps)}</span></div>
+            <div className="timeline-tracks"><div className="timeline-track"><div className="track-label"><strong>V1</strong><span>cenas</span></div><div className="track-lane"><div className="playhead" style={{left: `${frames ? Math.min(100, Math.max(0, playheadFrame / frames * 100)) : 0}%`}}/><div className="scene-strip">{clips.length ? clips.map((clip, i) => {const visible = timelineDraft?.index === i ? resizeClip(clip, timelineDraft.delta, timelineDraft.edge, settings.fps) : clip; return <div key={clip.id} disabled={busy} draggable={!busy} onDragStart={() => setDragged(i)} onDragEnd={() => setDragged(null)} onDragOver={e => e.preventDefault()} onDrop={e => {e.preventDefault(); if (dragged !== null) move(dragged, i); setDragged(null);}} onClick={() => selectClip(clip)} className={`scene-block ${clip.id === current?.id ? 'active' : ''}`} style={{flexGrow: visible.frames}} role="button" tabIndex="0"><button className="trim-handle left" aria-label={`Ajustar início da cena ${i + 1}`} disabled={busy} onPointerDown={e => beginTimelineResize(e, i, 'left')} onClick={e => e.stopPropagation()}/><span className="scene-number">{String(i + 1).padStart(2, '0')}</span><strong>{clip.asset.name}</strong><span>{secondsLabel(visible.frames, settings.fps)} s · {visible.frames} q</span><button className="trim-handle right" aria-label={`Ajustar fim da cena ${i + 1}`} disabled={busy} onPointerDown={e => beginTimelineResize(e, i, 'right')} onClick={e => e.stopPropagation()}/></div>}) : <div className="timeline-empty">Adicione arquivos para montar a sequência de cenas.</div>}</div></div></div><div className="timeline-track timeline-track-muted"><div className="track-label"><strong>A1</strong><span>áudio</span></div><div className="audio-lane">{settings.audio ? 'Áudio original dos vídeos' : 'Sem áudio • ative “Manter áudio original” para exportar áudio'}</div></div></div>
             <div className="equalize"><div><strong>Mesmo tempo para cada cena</strong><span>Divide o tempo total em quadros inteiros.</span></div><div className="equalize-action"><label className="sr-only" htmlFor="equal-seconds">Tempo total para distribuir</label><div className="input-unit"><input id="equal-seconds" type="number" min="0.1" max="1800" step="0.1" value={equalSeconds} disabled={busy} onChange={e => setEqualSeconds(e.target.value === '' ? '' : Number(e.target.value))}/><span>s</span></div><button className="button secondary" disabled={busy || !clips.length || equalSeconds <= 0} onClick={equalize}>Distribuir</button></div></div>
             <p className="timeline-note">A 30 FPS, 10 segundos = 300 quadros. Em 3 cenas: 100 quadros para cada uma.</p>
           </section>
