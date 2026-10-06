@@ -152,16 +152,8 @@ function App() {
   return <div className="app-shell">
     <header className="app-header"><a className="brand" href="/" aria-label="Eleva Studio, início"><span className="brand-mark">e<span>↗</span></span><div>eleva<span className="brand-sub">STUDIO</span></div></a><div className="header-separator"/><span className="header-label">Editor para painéis de LED</span><div className="header-end"><span className="local-badge"><i/> Processamento local</span><button className="button primary" disabled={busy || importing || !clips.length} onClick={() => exportVideo()}><Icon name="arrow"/> Exportar vídeo</button></div></header>
     <nav className="studio-menubar" aria-label="Menu do editor">
-      {[
-        ['arquivo', 'Arquivo', [['importar', 'Importar mídias'], ['exportar', 'Exportar vídeo'], ['quadro', 'Salvar quadro atual']]],
-        ['visualizar', 'Visualizar', [['ajustar', 'Ajustar à janela'], ['tela-cheia', 'Prévia em tela cheia']]],
-        ['composição', 'Composição', [['painel', 'Configurar painel'], ['cenas', 'Gerenciar cenas']]],
-        ['ferramentas', 'Ferramentas', [['distribuir', 'Distribuir tempo'], ['atalhos', 'Atalhos do teclado']]],
-        ['ajuda', 'Ajuda', [['guia', 'Guia rápido do Eleva'], ['sobre', 'Sobre o Eleva Studio']]],
-      ].map(([key, label, items]) => <div className="menu-group" key={key}>
-        <button className="menu-trigger" aria-expanded={openMenu === key} onClick={() => setOpenMenu(openMenu === key ? null : key)}>{label}</button>
-        {openMenu === key && <div className="menu-popover">{items.map(([action, text]) => <button key={action} onClick={() => {setOpenMenu(null); if (action === 'importar') fileInput.current?.click(); if (action === 'exportar') exportVideo(); if (action === 'quadro') saveCurrentFrame(playheadFrame); if (action === 'distribuir') equalize();}}>{text}</button>)}</div>}
-      </div>)}
+      <div className="menu-group"><button className="menu-trigger" aria-expanded={openMenu === 'arquivo'} onClick={() => setOpenMenu(openMenu === 'arquivo' ? null : 'arquivo')}>Arquivo</button>{openMenu === 'arquivo' && <div className="menu-popover"><button onClick={() => {setOpenMenu(null); fileInput.current?.click();}}>Importar mídias</button><button onClick={() => {setOpenMenu(null); exportVideo();}}>Exportar vídeo</button><button onClick={() => {setOpenMenu(null); saveCurrentFrame(playheadFrame);}}>Salvar quadro atual</button></div>}</div>
+      <div className="menu-group"><button className="menu-trigger" aria-expanded={openMenu === 'ferramentas'} onClick={() => setOpenMenu(openMenu === 'ferramentas' ? null : 'ferramentas')}>Ferramentas</button>{openMenu === 'ferramentas' && <div className="menu-popover"><button onClick={() => {setOpenMenu(null); equalize();}}>Distribuir tempo</button></div>}</div>
       <span className="menu-spacer"/><span className="composition-label">eleva / Projeto atual</span><span className="shortcut-hint">Ctrl + K · buscar</span>
     </nav>
     <main>
