@@ -7,11 +7,13 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "node --test tests/*.test.js",
-    "test:media": "node --test tests/media.integration.js"
+    "test:media": "node --test tests/media.integration.js",
+    "test:wasm": "node --test tests/wasm.integration.js"
   },
   "devDependencies": {
-    "vite": "^6.0.0",
-    "@remotion/cli": "4.0.533"
+    "@ffmpeg/core": "0.12.10",
+    "@remotion/cli": "4.0.533",
+    "vite": "^6.0.0"
   },
   "dependencies": {
     "@ffmpeg/ffmpeg": "^0.12.15",

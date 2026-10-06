@@ -40,6 +40,7 @@ A 30 FPS, um vídeo de 10 segundos tem **300 quadros**. Para três imagens com t
 
 ```sh
 npm test
+npm run test:wasm
 npm run build
 ```
 
@@ -51,6 +52,8 @@ npm run test:media
 
 Esses testes verificam uma imagem com 300 quadros, preenchimento até as bordas, vídeo curto com último quadro estendido, mudanças de três cenas nos quadros 100 e 200, cortes e áudio.
 
+`test:wasm` executa o core 0.12.10 usado no navegador por meio de uma interface de teste em Node.js. Confere o exportador completo, imagens, vídeo curto, concatenação, falhas e limpeza dos arquivos de trabalho. O core tem um erro conhecido no código de retorno do ffprobe ([issue #817](https://github.com/ffmpegwasm/ffmpeg.wasm/issues/817)); o editor exige um relatório novo, com streams e metadados completos, e depois valida os dados do vídeo.
+
 ## Publicação na Vercel
 
 Framework: Vite. Comando de build: `npm run build`. Pasta de saída: `dist`. `vercel.json` preserva os cabeçalhos COOP/COEP. Use um deployment de preview para testar antes de promover a produção.
@@ -58,6 +61,7 @@ Framework: Vite. Comando de build: `npm run build`. Pasta de saída: `dist`. `ve
 ## Limites atuais
 
 - Máximo de 250 MB por mídia, 4096 pixels por dimensão, 10 minutos por cena e 30 minutos por projeto. O limite prático depende da memória e potência do computador.
+- Cada etapa de conversão pode usar até cinco minutos de processamento; etapas que excederem esse tempo são interrompidas.
 - GIF animado, SVG, transições, legendas e camadas de texto não estão incluídos nesta versão.
 - A prévia e a exportação usam os cortes escolhidos; cortes em segundos que não coincidam com um quadro são quantizados pelos respectivos decodificadores. Para trabalho com precisão de um quadro, use cortes que sejam múltiplos de `1 / FPS` e confira o arquivo final.
 - Validar o arquivo não elimina um atraso introduzido pelo player, playlist ou controlador do painel. O tempo de reprodução precisa ser conferido no equipamento, filmando desde antes da primeira cena até a próxima entrada.

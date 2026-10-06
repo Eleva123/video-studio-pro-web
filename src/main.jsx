@@ -12,7 +12,11 @@ const sizeLabel = size => `${(size / 1024 / 1024).toLocaleString('pt-BR', {maxim
 function NumberField({label, value, onChange, suffix, ...props}) {
   const [draft, setDraft] = useState(value);
   useEffect(() => setDraft(value), [value]);
-  return <label className="field"><span>{label}</span><div className="input-unit"><input type="number" value={draft} onChange={e => {setDraft(e.target.value); onChange(e.target.value === '' ? '' : Number(e.target.value));}} onBlur={() => setDraft(value)} {...props}/>{suffix && <span>{suffix}</span>}</div></label>;
+  const commit = () => {
+    if (draft !== '' && Number.isFinite(Number(draft)) && Number(draft) !== Number(value)) onChange(Number(draft));
+    else setDraft(value);
+  };
+  return <label className="field"><span>{label}</span><div className="input-unit"><input type="number" value={draft} onChange={e => setDraft(e.target.value)} onBlur={commit} onKeyDown={e => {if (e.key === 'Enter') e.currentTarget.blur();}} {...props}/>{suffix && <span>{suffix}</span>}</div></label>;
 }
 function Thumbnail({asset}) {return asset.kind === 'image' ? <img src={asset.url} alt=""/> : <video src={asset.url} muted preload="metadata" aria-hidden="true"/>;}
 
@@ -86,6 +90,7 @@ function App() {
     catch (error) {setNotice(error.message);}
   }
   async function exportVideo(onlySelected = false) {
+    if (busy || importing) return;
     const exporting = {...project, clips: onlySelected ? [current] : clips};
     try {validateProject(exporting);} catch (error) {setNotice(error.message); return;}
     setBusy(true); setNotice(''); playerRef.current?.pause();
@@ -100,7 +105,7 @@ function App() {
   function savePreset(e) {
     e.preventDefault();
     try {
-      validateProject({...project, clips: clips.length ? clips : [{frames: 1, asset: {kind: 'image'}}]});
+      validateProject({settings, clips: [{frames: 1, asset: {kind: 'image'}}]});
       const name = presetName.trim();
       if (!name) return;
       const next = [...customPresets.filter(p => p.name !== name), {name, width: Number(settings.width), height: Number(settings.height)}];

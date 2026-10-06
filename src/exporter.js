@@ -33,13 +33,21 @@ export class ExportEngine {
   async run(args) {
     if (this.cancelled) throw new Error('Exportação cancelada.');
     this.logs = [];
-    const code = await this.ffmpeg.exec(args);
+    const code = await this.ffmpeg.exec(args, 300000);
     if (code !== 0) throw new Error(`O motor não conseguiu converter o arquivo (código ${code}). Confira o formato da mídia ou tente uma resolução menor.`);
   }
   async probe(input, result = 'eleva-probe.json') {
-    const code = await this.ffmpeg.ffprobe(['-v', 'error', '-show_streams', '-show_format', '-of', 'json', input, '-o', result]);
-    if (code !== 0) throw new Error('Não foi possível verificar os dados do vídeo.');
-    return JSON.parse(new TextDecoder().decode(await this.ffmpeg.readFile(result)));
+    // core 0.12.10 reports -1 even for successful ffprobe calls (upstream #817).
+    // Delete the old report and require a fresh, complete JSON with media streams.
+    await this.ffmpeg.deleteFile(result).catch(() => {});
+    const code = await this.ffmpeg.ffprobe(['-v', 'error', '-show_streams', '-show_format', '-of', 'json', input, '-o', result], 20000);
+    if (code !== 0 && code !== -1) throw new Error('Não foi possível verificar os dados do vídeo.');
+    try {
+      const probe = JSON.parse(new TextDecoder().decode(await this.ffmpeg.readFile(result)));
+      if (!Array.isArray(probe.streams) || !probe.streams.length || !probe.format) throw new Error('Relatório incompleto.');
+      if (!probe.streams.some(s => s.codec_type === 'video' && s.width > 0 && s.height > 0)) throw new Error('O arquivo não contém imagem válida.');
+      return probe;
+    } catch { throw new Error('Não foi possível verificar os dados do vídeo.'); }
   }
   async export(project, onUpdate) {
     validateProject(project);
