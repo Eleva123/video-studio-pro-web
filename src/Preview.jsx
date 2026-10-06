@@ -23,7 +23,7 @@ export function EditComposition({clips, settings}) {
     </Sequence>;
   })}</AbsoluteFill>;
 }
-function Transport({playerRef, frames, fps}) {
+function Transport({playerRef, frames, fps, onExportFrame}) {
   const [frame, setFrame] = useState(0);
   const [playing, setPlaying] = useState(false);
   useEffect(() => {
@@ -54,11 +54,11 @@ function Transport({playerRef, frames, fps}) {
       <button className="icon-btn" aria-label="Quadro anterior" onClick={() => seek(frame - 1)}><Icon name="prev"/></button>
       <button className="play-btn" aria-label={playing ? 'Pausar prévia' : 'Reproduzir prévia'} onClick={() => playerRef.current?.toggle()}><Icon name={playing ? 'pause' : 'play'} size={19}/></button>
       <button className="icon-btn" aria-label="Próximo quadro" onClick={() => seek(frame + 1)}><Icon name="next"/></button>
-    </div><div className="timecode">{timecode(frame, fps)} <span>/ {timecode(frames, fps)}</span></div><span className="frame-counter">Quadro {frame + 1} de {frames}</span></div>
+    </div><div className="timecode">{timecode(frame, fps)} <span>/ {timecode(frames, fps)}</span></div><span className="frame-counter">Quadro {frame + 1} de {frames}</span><button className="button secondary frame-export" onClick={() => onExportFrame(frame)}><Icon name="image" size={14}/> Salvar quadro</button></div>
     <input className="scrubber" aria-label="Posição da prévia em quadros" type="range" min="0" max={frames - 1} value={Math.min(frame, frames - 1)} onChange={e => seek(Number(e.target.value))}/>
   </div>;
 }
-export function Preview({project, playerRef, onAdd}) {
+export function Preview({project, playerRef, onAdd, onExportFrame}) {
   const {settings, clips} = project;
   const frames = totalFrames(clips);
   const inputProps = useMemo(() => ({clips, settings}), [clips, settings]);
@@ -69,6 +69,6 @@ export function Preview({project, playerRef, onAdd}) {
   return <section className="preview-card">
     <div className="section-header"><h2><Icon name="screen"/> Prévia do painel</h2><span className="badge">{settings.width || '—'} × {settings.height || '—'} px</span></div>
     <div className="preview-stage">{clips.length && validSize ? <Player key={previewKey} ref={playerRef} component={EditComposition} inputProps={inputProps} durationInFrames={frames} fps={settings.fps} compositionWidth={Number(settings.width)} compositionHeight={Number(settings.height)} controls={false} clickToPlay={false} loop={false} style={{width: '100%', maxHeight: 350, aspectRatio: `${settings.width}/${settings.height}`}} errorFallback={() => <div className="preview-error">Não foi possível mostrar esta mídia. Remova a cena ou importe uma versão em MP4 H.264.</div>} /> : <div className="preview-empty"><div className="empty-symbol"><Icon name="film" size={35}/></div><h3>Seu próximo vídeo começa aqui</h3><p>Adicione as mídias, ajuste o painel e confira cada quadro.</p><button className="button secondary" onClick={onAdd}><Icon name="add"/> Adicionar mídias</button></div>}</div>
-    {clips.length > 0 && validSize ? <Transport key={previewKey} playerRef={playerRef} frames={frames} fps={settings.fps}/> : <div className="preview-footnote">Prévia por quadro com Remotion <span>•</span> Arquivos processados no seu navegador</div>}
+    {clips.length > 0 && validSize ? <Transport key={previewKey} playerRef={playerRef} frames={frames} fps={settings.fps} onExportFrame={onExportFrame}/> : <div className="preview-footnote">Prévia por quadro com Remotion <span>•</span> Arquivos processados no seu navegador</div>}
   </section>;
 }

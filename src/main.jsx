@@ -4,6 +4,7 @@ import {Icon} from './Icon.jsx';
 import {Preview} from './Preview.jsx';
 import {readAsset} from './media.js';
 import {ExportEngine} from './exporter.js';
+import {exportFrame} from './frameExport.js';
 import {createId} from './id.js';
 import {changeFps, DEFAULT_SETTINGS, distributeFrames, PRESETS, readPresets, secondsLabel, secondsToFrames, totalFrames, validateProject} from './model.js';
 import './style.css';
@@ -37,6 +38,7 @@ function App() {
   const [equalSeconds, setEqualSeconds] = useState(10);
   const [dragOver, setDragOver] = useState(false);
   const [dragged, setDragged] = useState(null);
+  const [savingFrame, setSavingFrame] = useState(false);
   const fileInput = useRef(null);
   const playerRef = useRef(null);
   const engine = useRef(new ExportEngine());
@@ -103,6 +105,13 @@ function App() {
     } catch (error) {setNotice(error.message); setProgress({message: '', progress: 0});}
     finally {setBusy(false);}
   }
+  async function saveCurrentFrame(frame) {
+    if (busy || importing || savingFrame) return;
+    setSavingFrame(true); setNotice('');
+    try { await exportFrame(project, frame); setNotice('Quadro salvo como PNG.'); }
+    catch (error) { setNotice(error.message); }
+    finally { setSavingFrame(false); }
+  }
   function savePreset(e) {
     e.preventDefault();
     try {
@@ -130,7 +139,7 @@ function App() {
           {!clips.length && <p className="media-empty">Suas imagens e vídeos aparecem aqui. Cada arquivo vira uma cena.</p>}
           <div className="workflow-tip"><span className="tip-number">01</span><div><strong>Um fluxo feito para LED</strong><p>Importe → ajuste → confira → exporte.</p></div></div>
         </aside>
-        <div className="center-column"><Preview project={project} playerRef={playerRef} onAdd={() => fileInput.current.click()}/>
+        <div className="center-column"><Preview project={project} playerRef={playerRef} onAdd={() => fileInput.current.click()} onExportFrame={saveCurrentFrame}/>
           <section className="timeline panel"><div className="section-header"><h2><Icon name="film"/> Linha do tempo</h2><span className="muted">{clips.length} {clips.length === 1 ? 'cena' : 'cenas'}</span></div>
             <div className="timeline-summary"><div><strong>{secondsLabel(frames, settings.fps)} <small>s</small></strong><span>Duração total</span></div><div><strong>{frames} <small>quadros</small></strong><span>{settings.fps} quadros por segundo</span></div><div className="summary-format"><strong>{settings.width || '—'} × {settings.height || '—'}</strong><span>Resolução de saída</span></div></div>
             <div className="scene-strip">{clips.length ? clips.map((clip, i) => <button key={clip.id} disabled={busy} draggable={!busy} onDragStart={() => setDragged(i)} onDragEnd={() => setDragged(null)} onDragOver={e => e.preventDefault()} onDrop={e => {e.preventDefault(); if (dragged !== null) move(dragged, i); setDragged(null);}} onClick={() => selectClip(clip)} className={`scene-block ${clip.id === current?.id ? 'active' : ''}`} style={{flexGrow: clip.frames}}><span className="scene-number">{String(i + 1).padStart(2, '0')}</span><strong>{clip.asset.name}</strong><span>{secondsLabel(clip.frames, settings.fps)} s · {clip.frames} q</span></button>) : <div className="timeline-empty">Adicione arquivos para montar a sequência de cenas.</div>}</div>
