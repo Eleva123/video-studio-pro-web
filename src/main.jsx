@@ -149,7 +149,7 @@ function App() {
   }
   const presets = [...PRESETS, ...customPresets];
   const presetValue = presets.findIndex(p => p.width === Number(settings.width) && p.height === Number(settings.height));
-  return <div className="app-shell">
+  return <div className={`app-shell ${current ? 'has-selection' : ''}`}>
     <header className="app-header"><a className="brand" href="/" aria-label="Eleva Studio, início"><span className="brand-mark">e<span>↗</span></span><div>eleva<span className="brand-sub">STUDIO</span></div></a><div className="header-separator"/><span className="header-label">Editor para painéis de LED</span><div className="header-end"><span className="local-badge"><i/> Processamento local</span><button className="button primary" disabled={busy || importing || !clips.length} onClick={() => exportVideo()}><Icon name="arrow"/> Exportar vídeo</button></div></header>
     <nav className="studio-menubar" aria-label="Menu do editor">
       <div className="menu-group"><button className="menu-trigger" aria-expanded={openMenu === 'arquivo'} onClick={() => setOpenMenu(openMenu === 'arquivo' ? null : 'arquivo')}>Arquivo</button>{openMenu === 'arquivo' && <div className="menu-popover"><button onClick={() => {setOpenMenu(null); fileInput.current?.click();}}>Importar mídias</button><button onClick={() => {setOpenMenu(null); exportVideo();}}>Exportar vídeo</button><button onClick={() => {setOpenMenu(null); saveCurrentFrame(playheadFrame);}}>Salvar quadro atual</button></div>}</div>
