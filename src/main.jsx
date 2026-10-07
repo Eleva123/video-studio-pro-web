@@ -94,6 +94,12 @@ function App() {
     try {const allocation = distributeFrames(secondsToFrames(equalSeconds, settings.fps), clips.length); change(p => ({...p, clips: p.clips.map((c, i) => ({...c, frames: allocation[i]}))}));}
     catch (error) {setNotice(error.message);}
   }
+  function downloadResult(result) {
+    const link = document.createElement('a');
+    link.href = result.url;
+    link.download = result.name;
+    link.click();
+  }
   async function exportVideo(onlySelected = false) {
     if (busy || importing) return;
     const exporting = {...project, clips: onlySelected ? [current] : clips};
@@ -104,6 +110,8 @@ function App() {
       const result = await engine.current.export(exporting, setProgress);
       resultUrls.current.add(result.url);
       setResults(r => [result, ...r]);
+      downloadResult(result);
+      setNotice('Exportação concluída. O download do vídeo foi iniciado.');
     } catch (error) {setNotice(error.message); setProgress({message: '', progress: 0});}
     finally {setBusy(false);}
   }
