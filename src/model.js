@@ -1,4 +1,4 @@
-export const DEFAULT_SETTINGS = {width: 600, height: 360, fps: 30, fit: 'stretch', audio: false, quality: 20};
+export const DEFAULT_SETTINGS = {width: 600, height: 360, fps: 30, fit: 'stretch', audio: false, quality: 20, outputName: 'eleva-video.mp4'};
 export const PRESETS = [
   {name: 'Horizontal • 600 × 360', width: 600, height: 360},
   {name: 'Horizontal • 576 × 384', width: 576, height: 384},

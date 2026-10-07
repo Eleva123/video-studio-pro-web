@@ -39,6 +39,7 @@ function App() {
   const [dragOver, setDragOver] = useState(false);
   const [savingFrame, setSavingFrame] = useState(false);
   const [playheadFrame, setPlayheadFrame] = useState(0);
+  const [saveLocationName, setSaveLocationName] = useState('Pasta Downloads');
   const [openMenu, setOpenMenu] = useState(null);
   const [inspectorTab, setInspectorTab] = useState('inspector');
   const fileInput = useRef(null);
@@ -46,6 +47,7 @@ function App() {
   const engine = useRef(new ExportEngine());
   const assetUrls = useRef(new Set());
   const resultUrls = useRef(new Set());
+  const saveHandle = useRef(null);
   const frames = totalFrames(clips);
   const current = clips.find(c => c.id === selected) || clips[0];
   const index = clips.findIndex(c => c.id === current?.id);
@@ -94,7 +96,33 @@ function App() {
     try {const allocation = distributeFrames(secondsToFrames(equalSeconds, settings.fps), clips.length); change(p => ({...p, clips: p.clips.map((c, i) => ({...c, frames: allocation[i]}))}));}
     catch (error) {setNotice(error.message);}
   }
-  function downloadResult(result) {
+  async function chooseSaveLocation() {
+    if (!window.showSaveFilePicker) {
+      setNotice('Este navegador não oferece escolha de pasta. O download usará a pasta padrão configurada no Chrome.');
+      return;
+    }
+    try {
+      const handle = await window.showSaveFilePicker({suggestedName: settings.outputName || 'eleva-video.mp4', types: [{description: 'Vídeo MP4', accept: {'video/mp4': ['.mp4']}}]});
+      saveHandle.current = handle;
+      setSaveLocationName(handle.name);
+      setNotice('Local de salvamento definido para esta sessão.');
+    } catch (error) {
+      if (error?.name !== 'AbortError') setNotice('Não foi possível definir o local de salvamento.');
+    }
+  }
+  async function downloadResult(result) {
+    if (saveHandle.current) {
+      try {
+        const response = await fetch(result.url);
+        const writable = await saveHandle.current.createWritable();
+        await writable.write(await response.blob());
+        await writable.close();
+        return;
+      } catch (error) {
+        saveHandle.current = null;
+        setSaveLocationName('Pasta Downloads');
+      }
+    }
     const link = document.createElement('a');
     link.href = result.url;
     link.download = result.name;
@@ -110,7 +138,7 @@ function App() {
       const result = await engine.current.export(exporting, setProgress);
       resultUrls.current.add(result.url);
       setResults(r => [result, ...r]);
-      downloadResult(result);
+      await downloadResult(result);
       setNotice('Exportação concluída. O download do vídeo foi iniciado.');
     } catch (error) {setNotice(error.message); setProgress({message: '', progress: 0});}
     finally {setBusy(false);}
@@ -159,7 +187,7 @@ function App() {
           <div className="field-row"><NumberField label="Largura" value={settings.width} min="2" max="4096" step="2" suffix="px" onChange={width => patchSettings({width})}/><NumberField label="Altura" value={settings.height} min="2" max="4096" step="2" suffix="px" onChange={height => patchSettings({height})}/></div>
           <button className="text-button" onClick={() => setPresetDialog(true)}><Icon name="save" size={15}/> Salvar este painel</button>
           <label className="field"><span>Preenchimento do vídeo</span><select value={settings.fit} onChange={e => patchSettings({fit: e.target.value})}><option value="stretch">Esticar até as bordas</option><option value="contain">Manter proporção com bordas</option><option value="cover">Preencher cortando as bordas</option></select></label><p className="field-help">{settings.fit === 'stretch' ? 'Ocupa toda a resolução escolhida, alterando a proporção da imagem.' : settings.fit === 'contain' ? 'Preserva a proporção e completa o espaço vazio com preto.' : 'Preserva a proporção e corta o excesso para preencher o painel.'}</p></div>
-          <div className="settings-group"><h3>Reprodução e exportação</h3><label className="field"><span>Quadros por segundo (FPS)</span><select value={settings.fps} onChange={e => change(p => changeFps(p, Number(e.target.value)))}>{[24,25,30,60].map(fps => <option key={fps} value={fps}>{fps} FPS</option>)}</select></label><label className="field"><span>Qualidade do arquivo</span><select value={settings.quality} onChange={e => patchSettings({quality: Number(e.target.value)})}><option value="18">Alta • arquivo maior</option><option value="20">Equilibrada</option><option value="23">Compacta • arquivo menor</option></select></label><label className="switch-label"><div><strong>Manter áudio original</strong><span>Imagens e vídeos sem áudio ficam silenciosos.</span></div><input type="checkbox" checked={settings.audio} onChange={e => patchSettings({audio: e.target.checked})}/></label><div className="export-spec"><Icon name="check" size={14}/><span>MP4 · H.264 · FPS constante</span></div></div>
+          <div className="settings-group"><h3>Reprodução e exportação</h3><label className="field"><span>Quadros por segundo (FPS)</span><select value={settings.fps} onChange={e => change(p => changeFps(p, Number(e.target.value)))}>{[24,25,30,60].map(fps => <option key={fps} value={fps}>{fps} FPS</option>)}</select></label><label className="field"><span>Qualidade do arquivo</span><select value={settings.quality} onChange={e => patchSettings({quality: Number(e.target.value)})}><option value="18">Alta • arquivo maior</option><option value="20">Equilibrada</option><option value="23">Compacta • arquivo menor</option></select></label><label className="field"><span>Nome do arquivo</span><input type="text" value={settings.outputName || ''} placeholder="eleva-video.mp4" maxLength="120" onChange={e => patchSettings({outputName: e.target.value})}/></label><div className="save-location"><div><strong>Local de salvamento</strong><span>{saveLocationName}</span></div><button type="button" className="text-button" onClick={chooseSaveLocation}>Escolher local</button></div><label className="switch-label"><div><strong>Manter áudio original</strong><span>Imagens e vídeos sem áudio ficam silenciosos.</span></div><input type="checkbox" checked={settings.audio} onChange={e => patchSettings({audio: e.target.checked})}/></label><div className="export-spec"><Icon name="check" size={14}/><span>MP4 · H.264 · FPS constante</span></div></div>
         </fieldset></> : <div className="renders-empty">{results.length ? results.map(result => <div className="render-mini" key={result.id}><strong>{result.name}</strong><span>{result.width} × {result.height} · {result.fps} FPS</span></div>) : <><Icon name="film" size={25}/><strong>Nenhuma exportação ainda</strong><span>Os arquivos validados aparecerão aqui.</span></>}</div>}</aside>
       </div>
       {current && <section className="clip-editor panel"><div className="section-header"><h2><Icon name="scissors"/> Editar cena {index + 1}<span className="clip-name">{current.asset.name}</span></h2><div className="clip-actions"><button className="icon-btn" disabled={busy || index === 0} aria-label="Mover cena para antes" onClick={() => move(index, index - 1)}><Icon name="up"/></button><button className="icon-btn" disabled={busy || index === clips.length - 1} aria-label="Mover cena para depois" onClick={() => move(index, index + 1)}><Icon name="down"/></button><button className="icon-btn" disabled={busy} aria-label="Duplicar cena" onClick={() => {const duplicate = {...current, id: createId()}; change(p => ({...p, clips: [...p.clips.slice(0, index + 1), duplicate, ...p.clips.slice(index + 1)]})); setSelected(duplicate.id);}}><Icon name="copy"/></button><button className="icon-btn danger" disabled={busy} aria-label="Remover cena" onClick={() => change(p => ({...p, clips: p.clips.filter(c => c.id !== current.id)}))}><Icon name="trash"/></button></div></div>
